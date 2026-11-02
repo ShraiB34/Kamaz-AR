@@ -1,784 +1,87 @@
-:root {
-  --bg-deep: #070f1c;
-  --bg-panel: rgba(12, 24, 43, 0.86);
-  --bg-card: rgba(18, 34, 58, 0.78);
-  --border-subtle: rgba(148, 163, 184, 0.18);
-  --border-accent: rgba(56, 189, 248, 0.45);
-  --emercom-blue: #0284c7;
-  --emercom-cyan: #38bdf8;
-  --emercom-orange: #f97316;
-  --emercom-emerald: #10b981;
-  --text-main: #f1f5f9;
-  --text-sec: #cbd5e1;
-  --text-muted: #94a3b8;
-  --radius-lg: 14px;
-  --radius-md: 10px;
-}
-
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-html, body {
+html,
+body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-deep);
-  color: var(--text-main);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
-
-#app {
-  display: flex;
-  flex-direction: column;
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-}
-
-/* ---------------- TOP HEADER ---------------- */
-.top-header {
-  height: 60px;
-  min-height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 18px;
-  background: rgba(8, 17, 32, 0.94);
-  border-bottom: 1px solid var(--border-subtle);
-  z-index: 30;
-  gap: 12px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.brand-crest {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-}
-
-.brand-titles {
-  min-width: 0;
-}
-
-.brand-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.plate-badge {
-  font-size: 11px;
-  font-weight: 700;
-  background: #f8fafc;
-  color: #0f172a;
-  padding: 1px 6px;
-  border-radius: 4px;
-  border: 1px solid #334155;
-  letter-spacing: 0.03em;
-}
-
-.brand-sub {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mode-tabs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(15, 28, 48, 0.9);
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-}
-
-.mode-tab {
-  background: transparent;
-  color: var(--text-sec);
-  border: none;
-  padding: 7px 13px;
-  border-radius: 7px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.mode-tab:hover {
-  color: #fff;
-  background: rgba(56, 189, 248, 0.12);
-}
-
-.mode-tab.active {
-  background: linear-gradient(135deg, #0284c7, #0369a1);
-  color: #fff;
-  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35);
-}
-
-.mode-tab.accent-qr {
-  border: 1px solid rgba(249, 115, 22, 0.45);
-}
-
-.mode-tab.accent-qr.active {
-  background: linear-gradient(135deg, #ea580c, #c2410c);
-  border-color: transparent;
-  box-shadow: 0 2px 10px rgba(234, 88, 12, 0.4);
-}
-
-/* ---------------- MAIN WORKSPACE ---------------- */
-.workspace {
-  flex: 1;
-  display: flex;
-  min-height: 0;
-  position: relative;
-}
-
-.viewport-area {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: radial-gradient(circle at 50% 42%, #162944 0%, #07101e 78%);
-}
-
-/* Layer 1: Camera video & synthetic QR tabletop feed */
-#ar-video,
-#ar-sim-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 1;
-  display: none;
-}
-
-/* Layer 2: Three.js WebGL Canvas */
-#three-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-  display: block;
+  background: #000000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   touch-action: none;
 }
 
-/* Layer 3: AR Reticle HUD Canvas */
+#ar-viewport {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  background: #000000;
+}
+
+#ar-video,
+#ar-sim-bg,
+#three-canvas,
 #ar-hud-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  display: block;
+}
+
+#ar-video {
+  object-fit: cover;
+  z-index: 1;
+}
+
+#ar-sim-bg {
+  z-index: 1;
+  display: none;
+}
+
+#three-canvas {
+  z-index: 2;
+  touch-action: none;
+}
+
+#ar-hud-canvas {
   z-index: 3;
   pointer-events: none;
-  display: none;
 }
 
-/* Layer 4: 3D HTML Hotspots */
-#hotspots-layer {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-
-.hotspot-pin {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(11, 27, 48, 0.9);
-  border: 2px solid var(--emercom-orange);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  pointer-events: auto;
-  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.22), 0 4px 12px rgba(0, 0, 0, 0.5);
-  transition: transform 0.16s ease, background 0.16s ease;
-}
-
-.hotspot-pin:hover,
-.hotspot-pin.selected {
-  transform: translate(-50%, -50%) scale(1.18);
-  background: var(--emercom-orange);
-  border-color: #fff;
-}
-
-.hotspot-pin .pin-tooltip {
-  position: absolute;
-  left: 34px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: rgba(8, 18, 34, 0.94);
-  border: 1px solid var(--border-accent);
-  padding: 4px 9px;
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.hotspot-pin:hover .pin-tooltip,
-.hotspot-pin.selected .pin-tooltip {
-  opacity: 1;
-}
-
-/* Layer 5: Space AR (<model-viewer>) overlay panel */
-#space-ar-view {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  background: radial-gradient(circle at 50% 42%, #162944 0%, #07101e 80%);
-  display: none;
-  flex-direction: column;
-}
-
-#space-ar-view.visible {
-  display: flex;
-}
-
-model-viewer {
-  width: 100%;
-  flex: 1;
-  --poster-color: transparent;
-}
-
-.mv-ar-cta {
-  position: absolute;
-  bottom: 26px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #f97316, #ea580c);
-  color: #fff;
-  border: none;
-  padding: 13px 24px;
-  border-radius: 999px;
-  font-size: 14.5px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 8px 24px rgba(249, 115, 22, 0.45);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.space-ar-hint {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
-  max-width: 520px;
-  background: var(--bg-panel);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-accent);
-  border-radius: var(--radius-md);
-  padding: 12px 15px;
-  font-size: 12.5px;
-  line-height: 1.45;
-  color: var(--text-sec);
-  z-index: 8;
-}
-
-/* ---------------- FLOATING VIEWPORT OVERLAYS ---------------- */
-.telemetry-pill-bar {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 5;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  pointer-events: none;
-}
-
-.tel-pill {
-  background: rgba(8, 18, 34, 0.82);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-subtle);
-  padding: 6px 11px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-sec);
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--emercom-emerald);
-  box-shadow: 0 0 8px var(--emercom-emerald);
-}
-
-.status-dot.warn {
-  background: var(--emercom-orange);
-  box-shadow: 0 0 8px var(--emercom-orange);
-}
-
-/* QR-AR Camera Toolbar */
-.qr-ar-hud-bar {
-  position: absolute;
-  top: 54px;
-  left: 14px;
-  right: 14px;
-  z-index: 5;
-  display: none;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.qr-ar-hud-bar.visible {
-  display: flex;
-}
-
-.ar-ctrl-group {
-  background: rgba(8, 18, 34, 0.88);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 6px 11px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-
-.ar-ctrl-group input[type="range"] {
-  width: 88px;
-  accent-color: var(--emercom-cyan);
-}
-
-/* Camera presets strip */
-.cam-presets {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 5;
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.preset-btn {
-  background: rgba(10, 22, 40, 0.82);
-  backdrop-filter: blur(8px);
-  color: var(--text-sec);
-  border: 1px solid var(--border-subtle);
-  padding: 5px 10px;
-  border-radius: 7px;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.preset-btn:hover {
-  border-color: var(--emercom-cyan);
-  color: #fff;
-}
-
-/* Bottom Interactive Action Dock */
-.bottom-dock {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(8, 17, 32, 0.90);
-  backdrop-filter: blur(14px);
-  border: 1px solid var(--border-subtle);
-  padding: 8px 10px;
-  border-radius: 14px;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
-  max-width: calc(100% - 24px);
-  overflow-x: auto;
-}
-
-.dock-btn {
-  background: rgba(24, 43, 73, 0.85);
-  color: var(--text-main);
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  padding: 8px 13px;
-  border-radius: 9px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  transition: all 0.16s ease;
-}
-
-.dock-btn:hover {
-  background: rgba(36, 63, 105, 0.95);
-  border-color: var(--emercom-cyan);
-}
-
-.dock-btn.active {
-  background: linear-gradient(135deg, #0284c7, #0369a1);
-  border-color: #38bdf8;
-}
-
-.dock-btn.primary-orange {
-  background: linear-gradient(135deg, #f97316, #d97706);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
-
-.dock-btn.primary-orange:hover {
-  filter: brightness(1.08);
-}
-
-/* ---------------- RIGHT SIDEBAR ---------------- */
-.sidebar {
-  width: 356px;
-  min-width: 356px;
-  background: rgba(9, 19, 35, 0.96);
-  border-left: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  overflow-y: auto;
-  z-index: 20;
-}
-
-.panel-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 13px;
-}
-
-.panel-card.qr-highlight {
-  border-color: rgba(249, 115, 22, 0.45);
-  background: linear-gradient(180deg, rgba(24, 42, 70, 0.92), rgba(14, 26, 46, 0.92));
-}
-
-.card-kicker {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--emercom-cyan);
-  margin-bottom: 4px;
-}
-
-.card-kicker.orange {
-  color: var(--emercom-orange);
-}
-
-.card-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.qr-preview-row {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  margin: 8px 0 10px;
-}
-
-.qr-frame {
-  background: #ffffff;
-  padding: 7px;
-  border-radius: 10px;
-  border: 3px solid var(--emercom-blue);
-  flex-shrink: 0;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-.qr-frame canvas {
-  display: block;
-  width: 118px !important;
-  height: 118px !important;
-}
-
-.qr-steps {
-  font-size: 11.8px;
-  line-height: 1.42;
-  color: var(--text-sec);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.qr-btn-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
-
-.sm-btn {
-  background: rgba(30, 52, 86, 0.85);
-  color: var(--text-main);
-  border: 1px solid var(--border-subtle);
-  padding: 7px 10px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  text-decoration: none;
-  transition: all 0.15s;
-}
-
-.sm-btn:hover {
-  border-color: var(--emercom-cyan);
-  background: rgba(2, 132, 199, 0.28);
-}
-
-.sm-btn.span-2 {
-  grid-column: span 2;
-  background: rgba(249, 115, 22, 0.16);
-  border-color: rgba(249, 115, 22, 0.45);
-  color: #fed7aa;
-}
-
-.sm-btn.span-2:hover {
-  background: rgba(249, 115, 22, 0.28);
-}
-
-/* Specs & Hotspot details */
-.spec-desc {
-  font-size: 12.5px;
-  line-height: 1.48;
-  color: var(--text-sec);
-  margin-bottom: 10px;
-}
-
-.spec-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.spec-item {
-  background: rgba(9, 18, 34, 0.65);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 8px;
-  padding: 7px 9px;
-}
-
-.spec-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.spec-val {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin-top: 2px;
-}
-
-/* Photo Reference Strip */
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.photo-thumb {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s;
-}
-
-.photo-thumb:hover {
-  transform: scale(1.04);
-  border-color: var(--emercom-cyan);
-}
-
-/* ---------------- MOBILE ?ar=1 QUICK LAUNCH SHEET ---------------- */
-.mobile-ar-sheet {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 74px;
-  z-index: 45;
-  background: rgba(8, 18, 34, 0.95);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--emercom-orange);
-  border-radius: 16px;
-  padding: 15px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
-  display: none;
-}
-
-.mobile-ar-sheet.visible {
-  display: block;
-}
-
-.sheet-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-/* ---------------- PRINTABLE QR MARKER MODAL ---------------- */
-.modal-backdrop {
+/* Shown ONLY if a strict mobile browser blocks auto-camera until user tap */
+#cam-permission-prompt {
   position: fixed;
   inset: 0;
-  background: rgba(3, 8, 18, 0.82);
-  backdrop-filter: blur(8px);
-  z-index: 60;
+  z-index: 10;
   display: none;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
-.modal-backdrop.open {
+#cam-permission-prompt.visible {
   display: flex;
 }
 
-.marker-modal {
-  background: #0d1b30;
-  border: 1px solid var(--border-accent);
-  border-radius: 18px;
-  max-width: 560px;
-  width: 100%;
-  padding: 20px;
-  max-height: 92vh;
-  overflow-y: auto;
-}
-
-.printable-marker-sheet {
-  background: #ffffff;
-  color: #0f172a;
-  border-radius: 12px;
-  padding: 22px;
-  margin: 14px 0;
-  text-align: center;
-  border: 4px solid #0b1f3a;
-  position: relative;
-}
-
-.printable-marker-sheet h3 {
+#btn-start-camera {
+  padding: 16px 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
   font-size: 16px;
-  color: #0b1f3a;
-  margin-bottom: 4px;
-}
-
-.printable-marker-sheet p {
-  font-size: 12px;
-  color: #475569;
-  margin-bottom: 12px;
-}
-
-.url-input-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.url-input {
-  flex: 1;
-  background: rgba(7, 15, 28, 0.9);
-  border: 1px solid var(--border-subtle);
-  color: #fff;
-  padding: 8px 11px;
-  border-radius: 8px;
-  font-size: 12px;
-}
-
-/* Lightbox */
-.lightbox-img {
-  max-width: 92vw;
-  max-height: 82vh;
-  border-radius: 12px;
-  border: 2px solid var(--border-accent);
-}
-
-/* Responsive adjustments */
-@media (max-width: 960px) {
-  .workspace {
-    flex-direction: column;
-  }
-  .sidebar {
-    width: 100%;
-    min-width: 0;
-    max-height: 36vh;
-    border-left: none;
-    border-top: 1px solid var(--border-subtle);
-  }
-  .brand-sub, .cam-presets {
-    display: none;
-  }
-  .top-header {
-    height: auto;
-    padding: 8px 12px;
-    flex-wrap: wrap;
-  }
-  .mode-tabs {
-    width: 100%;
-    overflow-x: auto;
-  }
-}
-
-@media print {
-  body * {
-    visibility: hidden !important;
-  }
-  .printable-marker-sheet,
-  .printable-marker-sheet * {
-    visibility: visible !important;
-  }
-  .printable-marker-sheet {
-    position: fixed;
-    left: 50%;
-    top: 45%;
-    transform: translate(-50%, -50%);
-    width: 15cm;
-    border: 4px solid #000;
-  }
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }

@@ -1,14 +1,7 @@
 import jsQR from 'jsqr';
-import * as THREE from 'three';
 import QRCode from 'qrcode';
+import * as THREE from 'three';
 
-function vidH_safe(h) {
-  return h > 0 ? h : 1;
-}
-
-/**
- * Solve 8x8 linear system A * x = b with partial pivoting.
- */
 function solve8x8(A, b) {
   const n = 8;
   const M = A.map((row, i) => [...row, b[i]]);
@@ -30,101 +23,92 @@ function solve8x8(A, b) {
       M[maxRow] = tmp;
     }
 
-    const pivot = M[col][col];
-    for (let r = col + 1; r < n; r++) {
-      const factor = M[r][col] / pivot;
+    const piv = M[col][col];
+    for (let c = col; c <= n; c++) M[col][c] /= piv;
+
+    for (let r = 0; r < n; r++) {
+      if (r === col) continue;
+      const factor = M[r][col];
+      if (Math.abs(factor) < 1e-14) continue;
       for (let c = col; c <= n; c++) {
         M[r][c] -= factor * M[col][c];
       }
     }
   }
 
-  const x = new Array(n).fill(0);
-  for (let i = n - 1; i >= 0; i--) {
-    let sum = M[i][n];
-    for (let j = i + 1; j < n; j++) {
-      sum -= M[i][j] * x[j];
-    }
-    x[i] = sum / M[i][i];
-  }
-  return x;
+  return M.map((row) => row[n]);
 }
 
-/**
- * Invert 3x3 matrix (array of 9 floats in row-major order).
- */
 function invertTranspose3x3(R) {
-  const [r00, r01, r02, r10, r11, r12, r20, r21, r22] = R;
-  const c00 = r11 * r22 - r12 * r21;
-  const c01 = -(r10 * r22 - r12 * r20);
-  const c02 = r10 * r21 - r11 * r20;
-
-  const c10 = -(r01 * r22 - r02 * r21);
-  const c11 = r00 * r22 - r02 * r20;
-  const c12 = -(r00 * r21 - r01 * r20);
-
-  const c20 = r01 * r12 - r02 * r11;
-  const c21 = -(r00 * r12 - r02 * r10);
-  const c22 = r00 * r11 - r01 * r10;
-
-  const det = r00 * c00 + r01 * c01 + r02 * c02;
-  if (Math.abs(det) < 1e-11) return null;
+  const [a, b, c, d, e, f, g, h, i] = R;
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const D = -(b * i - c * h);
+  const E = a * i - c * g;
+  const F = -(a * h - b * g);
+  const G = b * f - c * e;
+  const H = -(a * f - c * d);
+  const I = a * e - b * d;
+  const det = a * A + b * B + c * C;
+  if (Math.abs(det) < 1e-10) return null;
   const invDet = 1.0 / det;
-  // Cofactor matrix divided by det IS already (R^-1)^T !
   return [
-    c00 * invDet, c01 * invDet, c02 * invDet,
-    c10 * invDet, c11 * invDet, c12 * invDet,
-    c20 * invDet, c21 * invDet, c22 * invDet,
+    A * invDet, B * invDet, C * invDet,
+    D * invDet, E * invDet, F * invDet,
+    G * invDet, H * invDet, I * invDet,
   ];
 }
 
+function vidH_safe(v) {
+  return Math.max(1, v);
+}
+
 /**
- * Exact 6-DoF planar homography pose estimation from 4 QR corners.
- * Marker local frame:
- *   Origin (0,0,0) = center of QR code
- *   +X = left -> right of QR code
- *   +Y = UP out of the QR code surface toward viewer (wheels sit at Y = 0!)
- *   +Z = top -> bottom of QR code
+ * Computes Three.js 6-DoF Pose (position, quaternion) of a 1.0 x 1.0 unit QR marker
+ * lying in the local XZ plane (+Y up out of the QR code) from 4 jsQR pixel corners.
  */
 export function computePoseFromQRCorners(cornersVid, vidW, vidH, viewW, viewH, fovDeg) {
-  const coverScale = Math.max(viewW / vidW, viewH / vidH);
-  const fPx = (viewH * 0.5) / Math.tan((fovDeg * Math.PI) / 360.0);
+  const coverScale = Math.max(viewW / vidW, viewH / vidH_safe(vidH));
+  const dispW = vidW * coverScale;
+  const dispH = vidH * coverScale;
+  const cropX = (dispW - viewW) * 0.5;
+  const cropY = (dispH - viewH) * 0.5;
 
-  const srcXZ = [
-    [-0.5, -0.5], // topLeft
-    [+0.5, -0.5], // topRight
-    [+0.5, +0.5], // bottomRight
-    [-0.5, +0.5], // bottomLeft
+  const fy = (viewH * 0.5) / Math.tan(THREE.MathUtils.degToRad(fovDeg * 0.5));
+  const fx = fy;
+  const cx = viewW * 0.5;
+  const cy = viewH * 0.5;
+
+  const modelPts = [
+    [-0.5, -0.5],
+    [+0.5, -0.5],
+    [+0.5, +0.5],
+    [-0.5, +0.5],
   ];
-
-  const viewPts = cornersVid.map((pt) => {
-    const uView = (pt.x - vidW * 0.5) * coverScale + viewW * 0.5;
-    const vView = (pt.y - vidH * 0.5) * coverScale + viewH * 0.5;
-    return {
-      u: uView,
-      v: vView,
-      xn: (uView - viewW * 0.5) / fPx,
-      yn: (viewH * 0.5 - vView) / fPx,
-    };
-  });
 
   const A = [];
   const b = [];
+  const viewPts = [];
+
   for (let i = 0; i < 4; i++) {
-    const [xm, zm] = srcXZ[i];
-    const { xn, yn } = viewPts[i];
-    A.push([xm, zm, 1, 0, 0, 0, -xm * xn, -zm * xn]);
+    const u = cornersVid[i].x * coverScale - cropX;
+    const v = cornersVid[i].y * coverScale - cropY;
+    viewPts.push({ u, v });
+
+    const xn = (u - cx) / fx;
+    const yn = -(v - cy) / fy;
+    const [X, Z] = modelPts[i];
+
+    A.push([X, Z, 1, 0, 0, 0, -X * xn, -Z * xn]);
     b.push(xn);
-    A.push([0, 0, 0, xm, zm, 1, -xm * yn, -zm * yn]);
+    A.push([0, 0, 0, X, Z, 1, -X * yn, -Z * yn]);
     b.push(yn);
   }
 
   const h = solve8x8(A, b);
   if (!h) return null;
 
-  // M = diag(1, 1, -1) * H; enforce M[2][2] < 0 (marker in front of Three.js camera, Z_c < 0)
-  let sgn = -1.0 > 0 ? 1.0 : 1.0;
-  // M row 2 is [-h[6], -h[7], -1.0]; M[2][2] = -1.0 < 0 already! Check if h3_z had opposite sign:
   let m00 = h[0],  m01 = h[1],  m02 = h[2];
   let m10 = h[3],  m11 = h[4],  m12 = h[5];
   let m20 = -h[6], m21 = -h[7], m22 = -1.0;
@@ -142,7 +126,6 @@ export function computePoseFromQRCorners(cornersVid, vidW, vidH, viewW, viewH, f
 
   let r1x = m00 / scale, r1y = m10 / scale, r1z = m20 / scale;
   let r3x = m01 / scale, r3y = m11 / scale, r3z = m21 / scale;
-  // r2 = r3 x r1 (right-handed: +Z x +X = +Y UP!)
   let r2x = r3y * r1z - r3z * r1y;
   let r2y = r3z * r1x - r3x * r1z;
   let r2z = r3x * r1y - r3y * r1x;
@@ -153,7 +136,6 @@ export function computePoseFromQRCorners(cornersVid, vidW, vidH, viewW, viewH, f
     r1z, r2z, r3z,
   ];
 
-  // 5-step polar decomposition orthogonalization onto SO(3)
   for (let iter = 0; iter < 5; iter++) {
     const invT = invertTranspose3x3(R);
     if (!invT) break;
@@ -166,8 +148,7 @@ export function computePoseFromQRCorners(cornersVid, vidW, vidH, viewW, viewH, f
   const ty = m12 / scale;
   const tz = m22 / scale;
 
-  // Reject implausible poses (too close or behind camera or absurdly far)
-  if (tz > -0.18 || tz < -25.0 || !Number.isFinite(tx)) return null;
+  if (tz > -0.15 || tz < -30.0 || !Number.isFinite(tx)) return null;
 
   const basisMat = new THREE.Matrix4().makeBasis(
     new THREE.Vector3(R[0], R[3], R[6]),
@@ -177,18 +158,14 @@ export function computePoseFromQRCorners(cornersVid, vidW, vidH, viewW, viewH, f
   const quaternion = new THREE.Quaternion().setFromRotationMatrix(basisMat);
   const position = new THREE.Vector3(tx, ty, tz);
 
-  return {
-    position,
-    quaternion,
-    viewPts,
-  };
+  return { position, quaternion, viewPts };
 }
 
 /**
- * Manages live camera stream (or interactive synthetic QR tabletop simulator) + jsQR tracking.
+ * Fullscreen Pure Camera + jsQR 6-DoF Tracker (zero clutter overlays when locked).
  */
 export class QRCameraTracker {
-  constructor({ videoEl, simBgCanvasEl, hudCanvasEl, onPose, onLost, onStatus }) {
+  constructor({ videoEl, simBgCanvasEl, hudCanvasEl, onPose, onLost }) {
     this.videoEl = videoEl;
     this.simBgCanvasEl = simBgCanvasEl;
     this.simBgCtx = simBgCanvasEl ? simBgCanvasEl.getContext('2d') : null;
@@ -200,7 +177,6 @@ export class QRCameraTracker {
 
     this.onPose = onPose;
     this.onLost = onLost;
-    this.onStatus = onStatus;
 
     this.active = false;
     this.simMode = false;
@@ -208,13 +184,11 @@ export class QRCameraTracker {
     this.stream = null;
     this.frameCount = 0;
     this.holdFrames = 0;
-    this.maxHoldFrames = 14;
-    this.lastDecodedText = '';
+    this.maxHoldFrames = 24;
 
-    // Synthetic simulator assets
     this.simCanvas = document.createElement('canvas');
-    this.simCanvas.width = 960;
-    this.simCanvas.height = 540;
+    this.simCanvas.width = 720;
+    this.simCanvas.height = 1280;
     this.simCtx = this.simCanvas.getContext('2d');
     this.simQrImg = null;
   }
@@ -240,26 +214,26 @@ export class QRCameraTracker {
     this.simMode = false;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error('Браузер не поддерживает доступ к камере (требуется HTTPS).');
+      throw new Error('NO_MEDIA_DEVICES');
     }
 
     const constraints = {
       audio: false,
       video: {
         facingMode: { ideal: facingMode },
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
       },
     };
 
     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
     this.videoEl.srcObject = this.stream;
     this.videoEl.setAttribute('playsinline', 'true');
+    this.videoEl.muted = true;
     await this.videoEl.play();
 
     this.active = true;
     this.holdFrames = 0;
-    this.onStatus?.('camera_ready', 'Наведите камеру на любой QR-код (или маркер справа)');
     return true;
   }
 
@@ -269,7 +243,6 @@ export class QRCameraTracker {
     this.simMode = true;
     this.active = true;
     this.holdFrames = 0;
-    this.onStatus?.('sim_ready', 'Демо-симуляция: виртуальная камера наведена на печатный QR-маркер');
   }
 
   stop() {
@@ -290,48 +263,40 @@ export class QRCameraTracker {
     }
   }
 
-  renderSyntheticTabletop(timeSec) {
-    const W = this.simCanvas.width;
-    const H = this.simCanvas.height;
+  renderSyntheticTabletop(timeSec, viewW, viewH) {
+    const isPortrait = viewH > viewW;
+    const W = isPortrait ? 720 : 1280;
+    const H = isPortrait ? 1280 : 720;
+    if (this.simCanvas.width !== W || this.simCanvas.height !== H) {
+      this.simCanvas.width = W;
+      this.simCanvas.height = H;
+    }
     const ctx = this.simCtx;
 
-    // Realistic desk surface background
-    const grad = ctx.createRadialGradient(W * 0.5, H * 0.45, 50, W * 0.5, H * 0.5, W * 0.72);
-    grad.addColorStop(0, '#2a3444');
-    grad.addColorStop(1, '#111824');
+    // Realistic neutral wooden/concrete desk surface for desktop-without-webcam preview
+    const grad = ctx.createRadialGradient(W * 0.5, H * 0.5, 40, W * 0.5, H * 0.5, Math.max(W, H) * 0.72);
+    grad.addColorStop(0, '#3a424e');
+    grad.addColorStop(1, '#1c222b');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    // Subtle tactical desk grid lines
-    ctx.strokeStyle = 'rgba(148, 163, 184, 0.12)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 48) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-    }
-    for (let y = 0; y < H; y += 48) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-
-    // Gently orbiting / tilting QR card on the table so jsQR detects real pixels!
     if (this.simQrImg) {
       ctx.save();
-      const cx = W * 0.5 + Math.sin(timeSec * 0.65) * 42;
-      const cy = H * 0.63 + Math.cos(timeSec * 0.5) * 16;
-      const rot = Math.sin(timeSec * 0.45) * 0.22;
+      const cx = W * 0.5 + Math.sin(timeSec * 0.55) * 24;
+      const cy = H * 0.58 + Math.cos(timeSec * 0.45) * 14;
+      const rot = Math.sin(timeSec * 0.35) * 0.16;
+      const cardR = Math.min(W, H) * 0.21;
       ctx.translate(cx, cy);
-      ctx.scale(1.0, 0.70 + Math.sin(timeSec * 0.4) * 0.05); // realistic tabletop foreshortening!
+      ctx.scale(1.0, 0.68);
       ctx.rotate(rot);
 
-      // White printed A5 marker sheet shadow + sheet
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-      ctx.fillRect(-142, -142, 296, 296);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+      ctx.fillRect(-cardR + 6, -cardR + 8, cardR * 2, cardR * 2);
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-148, -148, 296, 296);
-      ctx.strokeStyle = '#0284c7';
-      ctx.lineWidth = 5;
-      ctx.strokeRect(-138, -138, 276, 276);
+      ctx.fillRect(-cardR, -cardR, cardR * 2, cardR * 2);
 
-      ctx.drawImage(this.simQrImg, -112, -112, 224, 224);
+      const qrR = cardR * 0.80;
+      ctx.drawImage(this.simQrImg, -qrR, -qrR, qrR * 2, qrR * 2);
       ctx.restore();
     }
   }
@@ -352,12 +317,11 @@ export class QRCameraTracker {
     let srcH = this.videoEl.videoHeight || 0;
 
     if (this.simMode) {
-      this.renderSyntheticTabletop(timeSec);
+      this.renderSyntheticTabletop(timeSec, viewW, viewH);
       srcEl = this.simCanvas;
       srcW = this.simCanvas.width;
       srcH = this.simCanvas.height;
 
-      // Draw synthetic camera feed onto background canvas BEHIND Three.js canvas
       if (this.simBgCanvasEl && this.simBgCtx) {
         if (this.simBgCanvasEl.width !== viewW || this.simBgCanvasEl.height !== viewH) {
           this.simBgCanvasEl.width = viewW;
@@ -372,8 +336,8 @@ export class QRCameraTracker {
       return;
     }
 
-    // Downsample to ~640px wide for ultra-fast 60 FPS jsQR detection
-    const targetW = Math.min(640, srcW);
+    // High-res 840px detection so phones lock onto QR even from comfortable distance!
+    const targetW = Math.min(840, srcW);
     const scaleDown = targetW / srcW;
     const targetH = Math.round(srcH * scaleDown);
     if (this.procCanvas.width !== targetW || this.procCanvas.height !== targetH) {
@@ -398,53 +362,29 @@ export class QRCameraTracker {
       const pose = computePoseFromQRCorners(cornersVid, srcW, srcH, viewW, viewH, fovDeg);
       if (pose) {
         this.holdFrames = this.maxHoldFrames;
-        this.lastDecodedText = qr.data || '';
-        this.drawDetectedReticle(hctx, pose.viewPts);
-        this.onPose?.(pose.position, pose.quaternion, this.lastDecodedText);
+        // Zero HUD clutter when locked — pure camera + 3D model only!
+        this.onPose?.(pose.position, pose.quaternion);
         return;
       }
     }
 
-    // Brief occlusion hold so fast hand movement doesn't flicker
     if (this.holdFrames > 0) {
       this.holdFrames--;
     } else {
-      this.drawScanningGuide(hctx, viewW, viewH, timeSec);
+      this.drawMinimalScanCorners(hctx, viewW, viewH);
       this.onLost?.();
     }
   }
 
-  drawDetectedReticle(ctx, pts) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].u, pts[0].v);
-    ctx.lineTo(pts[1].u, pts[1].v);
-    ctx.lineTo(pts[2].u, pts[2].v);
-    ctx.lineTo(pts[3].u, pts[3].v);
-    ctx.closePath();
-    ctx.stroke();
-
-    // Glowing rescue-orange corner dots
-    pts.forEach((p, idx) => {
-      ctx.fillStyle = idx === 0 ? '#f97316' : '#38bdf8';
-      ctx.beginPath();
-      ctx.arc(p.u, p.v, 5.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.restore();
-  }
-
-  drawScanningGuide(ctx, w, h, t) {
-    const boxSize = Math.min(w, h) * 0.56;
+  drawMinimalScanCorners(ctx, w, h) {
+    const boxSize = Math.min(w, h) * 0.54;
     const x0 = (w - boxSize) * 0.5;
     const y0 = (h - boxSize) * 0.5;
-    const len = 32;
+    const len = 26;
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(249, 115, 22, 0.88)';
-    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
 
     const corners = [
@@ -460,19 +400,6 @@ export class QRCameraTracker {
       ctx.lineTo(c[4], c[5]);
       ctx.stroke();
     }
-
-    // Animated scan line
-    const sy = y0 + ((Math.sin(t * 2.4) * 0.5 + 0.5) * boxSize);
-    const grad = ctx.createLinearGradient(x0, sy, x0 + boxSize, sy);
-    grad.addColorStop(0, 'rgba(56, 189, 248, 0)');
-    grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.85)');
-    grad.addColorStop(1, 'rgba(56, 189, 248, 0)');
-    ctx.strokeStyle = grad;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(x0 + 8, sy);
-    ctx.lineTo(x0 + boxSize - 8, sy);
-    ctx.stroke();
     ctx.restore();
   }
 }
