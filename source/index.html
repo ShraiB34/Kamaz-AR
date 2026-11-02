@@ -9,15 +9,54 @@
 </head>
 <body>
   <div id="ar-viewport">
-    <video id="ar-video" playsinline muted autoplay></video>
-    <canvas id="ar-sim-bg"></canvas>
+    <!-- Hidden 1x1 off-layer video decoder (prevents ALL mobile browser native Play/Pause overlays!) -->
+    <video
+      id="ar-video"
+      playsinline
+      webkit-playsinline
+      muted
+      autoplay
+      disablepictureinpicture
+      disableremoteplayback
+      x-webkit-airplay="deny"
+    ></video>
+
+    <!-- Layer 1: Fullscreen Retina Camera Canvas -->
+    <canvas id="ar-cam-canvas"></canvas>
+
+    <!-- Layer 2: Fullscreen Transparent PBR 3D КАМАЗ-43118 Canvas -->
     <canvas id="three-canvas"></canvas>
+
+    <!-- Layer 3: Subtle Corner Aim Guide (disappears completely when QR or Surface is active) -->
     <canvas id="ar-hud-canvas"></canvas>
   </div>
 
-  <!-- Appears ONLY if browser requires an explicit tap to grant camera permission -->
-  <div id="cam-permission-prompt">
-    <button id="btn-start-camera">Включить камеру AR</button>
+  <!-- Hidden Apple ARKit Quick Look anchor (requires <img> child per Safari spec for direct AR launch) -->
+  <a id="ios-ar-link" rel="ar" href="./models/kamaz_comms_hub.usdz" aria-hidden="true" tabindex="-1">
+    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" />
+  </a>
+
+  <!-- Bottom Floating Controls (overlays both QR-Camera and WebXR DOM-Overlay) -->
+  <div id="ui-overlay">
+    <div id="cam-permission-prompt">
+      <button id="btn-start-camera" type="button">Включить камеру AR</button>
+    </div>
+
+    <div id="bottom-ar-controls">
+      <button id="btn-toggle-deploy" class="ar-bottom-btn primary-orange" type="button">
+        <svg class="btn-ico" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 3v14M6 7l4-4 4 4M4 17h12" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="deploy-btn-label">Свернуть в походное</span>
+      </button>
+
+      <button id="btn-place-surface" class="ar-bottom-btn surface-blue" type="button">
+        <svg class="btn-ico" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M3 13.5L10 17l7-3.5M10 3l6.5 3.25v5.5L10 15l-6.5-3.25v-5.5L10 3z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="surface-btn-label">Поместить на поверхность</span>
+      </button>
+    </div>
   </div>
 
   <script type="module" src="./src/main.js"></script>

@@ -7,13 +7,12 @@
   -webkit-user-select: none;
 }
 
-html,
-body {
+html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #000000;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0b1220;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   touch-action: none;
 }
 
@@ -23,51 +22,98 @@ body {
   width: 100vw;
   height: 100dvh;
   overflow: hidden;
-  background: #000000;
+  background: #0b1220;
 }
 
-#ar-video,
-#ar-sim-bg,
-#three-canvas,
+/* Completely suppress native mobile browser video UI & Play/Pause button on iOS & Android */
+#ar-video {
+  position: fixed !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0.001 !important;
+  clip-path: inset(100%) !important;
+  -webkit-clip-path: inset(100%) !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
+  overflow: hidden !important;
+}
+
+video::-webkit-media-controls,
+video::-webkit-media-controls-panel,
+video::-webkit-media-controls-play-button,
+video::-webkit-media-controls-start-playback-button,
+video::-webkit-media-controls-overlay-play-button,
+video::-webkit-media-controls-enclosure,
+video::-internal-media-controls-overlay-cast-button {
+  display: none !important;
+  opacity: 0 !important;
+  -webkit-appearance: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+}
+
+#ios-ar-link {
+  position: fixed;
+  left: -9999px;
+  top: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#ar-cam-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+  background: #0b1220;
+  pointer-events: none;
+}
+
+#three-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 2;
+  touch-action: none;
+}
+
 #ar-hud-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
-}
-
-#ar-video {
-  object-fit: cover;
-  z-index: 1;
-}
-
-#ar-sim-bg {
-  z-index: 1;
-  display: none;
-}
-
-#three-canvas {
-  z-index: 2;
-  touch-action: none;
-}
-
-#ar-hud-canvas {
   z-index: 3;
   pointer-events: none;
 }
 
-/* Shown ONLY if a strict mobile browser blocks auto-camera until user tap */
-#cam-permission-prompt {
+/* Overlay wrapper (also serves as WebXR dom-overlay root) */
+#ui-overlay {
   position: fixed;
   inset: 0;
   z-index: 10;
+  pointer-events: none;
+}
+
+#cam-permission-prompt {
+  position: absolute;
+  inset: 0;
   display: none;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(8, 13, 24, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: auto;
 }
 
 #cam-permission-prompt.visible {
@@ -75,13 +121,83 @@ body {
 }
 
 #btn-start-camera {
-  padding: 16px 28px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(15, 23, 42, 0.85);
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(234, 88, 12, 0.94);
   color: #ffffff;
   font-size: 16px;
   font-weight: 600;
+  padding: 14px 28px;
+  border-radius: 999px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Compact Floating Bottom Dock — leaves >92% of camera unobstructed */
+#bottom-ar-controls {
+  position: absolute;
+  left: 50%;
+  bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+  transform: translateX(-50%);
+  width: calc(100% - 20px);
+  max-width: 470px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.ar-bottom-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  padding: 11px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #f8fafc;
+  text-align: center;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.42);
+  transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.ar-bottom-btn:active {
+  transform: scale(0.96);
+}
+
+.ar-bottom-btn.primary-orange {
+  background: linear-gradient(135deg, rgba(234, 88, 12, 0.90), rgba(194, 65, 12, 0.90));
+  border-color: rgba(251, 146, 60, 0.55);
+}
+
+.ar-bottom-btn.stowed-state {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.86), rgba(30, 41, 59, 0.88));
+  border-color: rgba(56, 189, 248, 0.55);
+  color: #e0f2fe;
+}
+
+.ar-bottom-btn.surface-blue {
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.88), rgba(3, 105, 161, 0.88));
+  border-color: rgba(125, 211, 252, 0.50);
+}
+
+.ar-bottom-btn.surface-active {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.90), rgba(5, 150, 105, 0.90));
+  border-color: rgba(110, 231, 183, 0.60);
+}
+
+.btn-ico {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }

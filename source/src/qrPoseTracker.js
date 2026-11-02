@@ -162,13 +162,15 @@ export function computePoseFromQRCorners(cornersVid, vidW, vidH, viewW, viewH, f
 }
 
 /**
- * Fullscreen Pure Camera + jsQR 6-DoF Tracker (zero clutter overlays when locked).
+ * Fullscreen Canvas Camera Renderer + jsQR 6-DoF Tracker.
+ * Renders the camera stream onto `camCanvasEl` so `<video>` never appears visibly in the DOM
+ * (100% preventing iOS Safari / Android browser Play/Pause media overlays).
  */
 export class QRCameraTracker {
-  constructor({ videoEl, simBgCanvasEl, hudCanvasEl, onPose, onLost }) {
+  constructor({ videoEl, camCanvasEl, hudCanvasEl, onPose, onLost }) {
     this.videoEl = videoEl;
-    this.simBgCanvasEl = simBgCanvasEl;
-    this.simBgCtx = simBgCanvasEl ? simBgCanvasEl.getContext('2d') : null;
+    this.camCanvasEl = camCanvasEl;
+    this.camCtx = camCanvasEl.getContext('2d', { alpha: false });
     this.hudCanvasEl = hudCanvasEl;
     this.hudCtx = hudCanvasEl.getContext('2d');
 
@@ -180,6 +182,7 @@ export class QRCameraTracker {
 
     this.active = false;
     this.simMode = false;
+    this.qrTrackingEnabled = true;
     this.facingMode = 'environment';
     this.stream = null;
     this.frameCount = 0;
@@ -227,14 +230,25 @@ export class QRCameraTracker {
     };
 
     this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-    this.videoEl.srcObject = this.stream;
-    this.videoEl.setAttribute('playsinline', 'true');
+    this.videoEl.controls = false;
     this.videoEl.muted = true;
+    this.videoEl.playsInline = true;
+    this.videoEl.disablePictureInPicture = true;
+    this.videoEl.disableRemotePlayback = true;
+    this.videoEl.setAttribute('playsinline', '');
+    this.videoEl.setAttribute('webkit-playsinline', '');
+    this.videoEl.srcObject = this.stream;
     await this.videoEl.play();
 
     this.active = true;
     this.holdFrames = 0;
     return true;
+  }
+
+  ensurePlaying() {
+    if (this.stream && this.videoEl && this.videoEl.paused) {
+      this.videoEl.play().catch(() => {});
+    }
   }
 
   async startSimulation(urlText) {
@@ -258,9 +272,6 @@ export class QRCameraTracker {
     if (this.hudCtx && this.hudCanvasEl) {
       this.hudCtx.clearRect(0, 0, this.hudCanvasEl.width, this.hudCanvasEl.height);
     }
-    if (this.simBgCtx && this.simBgCanvasEl) {
-      this.simBgCtx.clearRect(0, 0, this.simBgCanvasEl.width, this.simBgCanvasEl.height);
-    }
   }
 
   renderSyntheticTabletop(timeSec, viewW, viewH) {
@@ -273,17 +284,17 @@ export class QRCameraTracker {
     }
     const ctx = this.simCtx;
 
-    // Realistic neutral wooden/concrete desk surface for desktop-without-webcam preview
     const grad = ctx.createRadialGradient(W * 0.5, H * 0.5, 40, W * 0.5, H * 0.5, Math.max(W, H) * 0.72);
     grad.addColorStop(0, '#3a424e');
     grad.addColorStop(1, '#1c222b');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, H);
 
-    if (this.simQrImg) {
+    // Only draw synthetic QR card when QR tracking is enabled (clean surface when in Surface Mode!)
+    if (this.simQrImg && this.qrTrackingEnabled) {
       ctx.save();
       const cx = W * 0.5 + Math.sin(timeSec * 0.55) * 24;
-      const cy = H * 0.58 + Math.cos(timeSec * 0.45) * 14;
+      const cy = H * 0.55 + Math.cos(timeSec * 0.45) * 14;
       const rot = Math.sin(timeSec * 0.35) * 0.16;
       const cardR = Math.min(W, H) * 0.21;
       ctx.translate(cx, cy);
@@ -321,22 +332,28 @@ export class QRCameraTracker {
       srcEl = this.simCanvas;
       srcW = this.simCanvas.width;
       srcH = this.simCanvas.height;
-
-      if (this.simBgCanvasEl && this.simBgCtx) {
-        if (this.simBgCanvasEl.width !== viewW || this.simBgCanvasEl.height !== viewH) {
-          this.simBgCanvasEl.width = viewW;
-          this.simBgCanvasEl.height = viewH;
-        }
-        const cover = Math.max(viewW / srcW, viewH / vidH_safe(srcH));
-        const dw = srcW * cover;
-        const dh = srcH * cover;
-        this.simBgCtx.drawImage(srcEl, (viewW - dw) * 0.5, (viewH - dh) * 0.5, dw, dh);
-      }
     } else if (srcW < 32 || srcH < 32) {
       return;
     }
 
-    // High-res 840px detection so phones lock onto QR even from comfortable distance!
+    // Paint live camera (or synthetic tabletop) onto Retina canvas with exact object-fit: cover
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cw = Math.round(viewW * dpr);
+    const ch = Math.round(viewH * dpr);
+    if (this.camCanvasEl.width !== cw || this.camCanvasEl.height !== ch) {
+      this.camCanvasEl.width = cw;
+      this.camCanvasEl.height = ch;
+    }
+    const cover = Math.max(cw / srcW, ch / vidH_safe(srcH));
+    const dw = srcW * cover;
+    const dh = srcH * cover;
+    this.camCtx.drawImage(srcEl, (cw - dw) * 0.5, (ch - dh) * 0.5, dw, dh);
+
+    if (!this.qrTrackingEnabled) {
+      return;
+    }
+
+    // 840px jsQR pass for fast long-range phone detection
     const targetW = Math.min(840, srcW);
     const scaleDown = targetW / srcW;
     const targetH = Math.round(srcH * scaleDown);
@@ -362,7 +379,6 @@ export class QRCameraTracker {
       const pose = computePoseFromQRCorners(cornersVid, srcW, srcH, viewW, viewH, fovDeg);
       if (pose) {
         this.holdFrames = this.maxHoldFrames;
-        // Zero HUD clutter when locked — pure camera + 3D model only!
         this.onPose?.(pose.position, pose.quaternion);
         return;
       }
@@ -377,9 +393,9 @@ export class QRCameraTracker {
   }
 
   drawMinimalScanCorners(ctx, w, h) {
-    const boxSize = Math.min(w, h) * 0.54;
+    const boxSize = Math.min(w, h) * 0.52;
     const x0 = (w - boxSize) * 0.5;
-    const y0 = (h - boxSize) * 0.5;
+    const y0 = (h - boxSize) * 0.46;
     const len = 26;
 
     ctx.save();
