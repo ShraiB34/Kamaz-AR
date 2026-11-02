@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Мобильный узел связи ЧС (КАМАЗ-43118) — WebAR & 3D Проект</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="brand">
+        <!-- EMERCOM Star of Hope SVG Crest -->
+        <svg class="brand-crest" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 10H54L56 36L32 58L8 36L10 10Z" fill="#F97316" stroke="#38BDF8" stroke-width="2.5"/>
+          <circle cx="32" cy="30" r="17" fill="#0284C7" stroke="#FFFFFF" stroke-width="2"/>
+          <polygon points="32,15 35,26 46,26 37,32 40,43 32,36 24,43 27,32 18,26 29,26" fill="#FFFFFF"/>
+          <polygon points="32,23 38,34 26,34" fill="#F97316"/>
+        </svg>
+        <div class="brand-titles">
+          <div class="brand-title">
+            <span>МОБИЛЬНЫЙ УЗЕЛ СВЯЗИ ЧС</span>
+            <span class="plate-badge">0828 ММ 18</span>
+          </div>
+          <div class="brand-sub">КАМАЗ-43118 (6×6) • ФГКУ «Ногинский спасательный центр МЧС России»</div>
+        </div>
+      </div>
+
+      <nav class="mode-tabs" role="tablist">
+        <button class="mode-tab active" data-mode="3d" id="tab-3d">3D Обзор</button>
+        <button class="mode-tab accent-qr" data-mode="qr-ar" id="tab-qr-ar">AR по QR-коду (Камера)</button>
+        <button class="mode-tab" data-mode="space-ar" id="tab-space-ar">AR в Пространстве</button>
+        <button class="mode-tab" id="btn-open-qr-modal">QR-Маркер</button>
+      </nav>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <div class="workspace">
+      <div class="viewport-area" id="viewport-area">
+        <!-- Layer 1: Camera / Simulator Background -->
+        <video id="ar-video" playsinline muted></video>
+        <canvas id="ar-sim-bg"></canvas>
+
+        <!-- Layer 2: Three.js 3D Scene -->
+        <canvas id="three-canvas"></canvas>
+
+        <!-- Layer 3: QR Detection Reticle HUD -->
+        <canvas id="ar-hud-canvas"></canvas>
+
+        <!-- Layer 4: Interactive 3D Hotspots -->
+        <div id="hotspots-layer"></div>
+
+        <!-- Telemetry Status Bar -->
+        <div class="telemetry-pill-bar">
+          <div class="tel-pill">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Режим 3D: Вращайте и масштабируйте модель</span>
+          </div>
+          <div class="tel-pill" id="deploy-state-pill">Статус: РАЗВЁРНУТ (РАБОТА ЧС)</div>
+        </div>
+
+        <!-- QR-AR Specific Controls -->
+        <div class="qr-ar-hud-bar" id="qr-ar-hud-bar">
+          <div class="ar-ctrl-group">
+            <span>Масштаб на QR:</span>
+            <input type="range" id="ar-scale-slider" min="0.4" max="2.4" step="0.05" value="1.15" />
+            <strong id="ar-scale-val">1.15×</strong>
+          </div>
+          <button class="preset-btn" id="btn-ar-rot">Повернуть 90°</button>
+          <button class="preset-btn" id="btn-ar-flip-cam">Сменить камеру</button>
+          <button class="preset-btn" id="btn-ar-sim" style="border-color:#f97316;color:#fed7aa;">Демо-симуляция QR (без камеры)</button>
+        </div>
+
+        <!-- 3D Camera Presets -->
+        <div class="cam-presets" id="cam-presets">
+          <button class="preset-btn" data-cam="iso">Общий 3/4</button>
+          <button class="preset-btn" data-cam="front">Кабина</button>
+          <button class="preset-btn" data-cam="right">Вход в КУНГ</button>
+          <button class="preset-btn" data-cam="roof">Крыша / VSAT iNetVu</button>
+          <button class="preset-btn" data-cam="rear">Корма</button>
+        </div>
+
+        <!-- Bottom Interactive Dock -->
+        <div class="bottom-dock" id="bottom-dock">
+          <button class="dock-btn primary-orange" id="btn-toggle-deploy">Свернуть в походное</button>
+          <button class="dock-btn" id="btn-toggle-waves">Радиолучи и VSAT</button>
+          <button class="dock-btn active" id="btn-toggle-beacon">Маячки СГУ</button>
+          <button class="dock-btn active" id="btn-toggle-hotspots">Точки узла (6)</button>
+        </div>
+
+        <!-- Layer 5: Markerless Native Space AR (<model-viewer>) -->
+        <div id="space-ar-view">
+          <div class="space-ar-hint">
+            <strong style="color:#38bdf8;">Безмаркерный AR-режим (WebXR / Scene Viewer / iOS Quick Look):</strong><br/>
+            Позволяет поставить 3D-модель мобильного узла связи прямо на стол, пол или асфальт через нативную AR-систему вашего смартфона.
+          </div>
+          <model-viewer
+            id="native-model-viewer"
+            src="./models/kamaz_comms_hub.glb"
+            alt="Мобильный узел связи ЧС КАМАЗ-43118"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            ar-scale="auto"
+            camera-controls
+            touch-action="pan-y"
+            shadow-intensity="1.1"
+            exposure="1.05"
+            camera-orbit="-38deg 72deg 11m"
+          >
+            <button slot="ar-button" class="mv-ar-cta">
+              Поместить 3D-узел в реальное пространство (AR)
+            </button>
+          </model-viewer>
+        </div>
+      </div>
+
+      <!-- RIGHT SIDEBAR -->
+      <aside class="sidebar">
+        <!-- QR Launch & Marker Card -->
+        <div class="panel-card qr-highlight">
+          <div class="card-kicker orange">Наведение на QR-код • WebAR</div>
+          <div class="card-title">Открытие AR по QR-коду</div>
+          <div class="qr-preview-row">
+            <div class="qr-frame" title="Наведите камеру смартфона">
+              <canvas id="sidebar-qr-canvas"></canvas>
+            </div>
+            <div class="qr-steps">
+              <div><strong>1. Камера телефона:</strong> отсканируйте QR — проект мгновенно откроется в мобильном AR.</div>
+              <div><strong>2. Трекинг маркера:</strong> во вкладке <em>«AR по QR-коду»</em> наведите камеру на этот же QR — 3D КАМАЗ вырастет прямо на нём!</div>
+            </div>
+          </div>
+          <div class="qr-btn-grid">
+            <button class="sm-btn" id="btn-dl-marker">Скачать QR (PNG)</button>
+            <button class="sm-btn" id="btn-print-sheet">Печать листа A4</button>
+            <a class="sm-btn span-2" href="./models/kamaz_comms_hub.glb" download="kamaz_43118_mchs_comms_hub.glb">
+              Скачать 3D-модель (.GLB, PBR)
+            </a>
+          </div>
+        </div>
+
+        <!-- Selected Subsystem / Technical Passport -->
+        <div class="panel-card" id="spec-card">
+          <div class="card-kicker" id="spec-kicker">Технический паспорт комплекса</div>
+          <div class="card-title" id="spec-title">Пункт управления и узел связи ПУС</div>
+          <p class="spec-desc" id="spec-desc">
+            Мобильный узел связи на полноприводном шасси КАМАЗ-43118 (6×6) предназначен для оперативного развёртывания спутниковой, КВ/УКВ радиосвязи, видеоконференцсвязи и мониторинга обстановки непосредственно в зоне чрезвычайной ситуации.
+          </p>
+          <div class="spec-grid">
+            <div class="spec-item">
+              <div class="spec-label">Базовое шасси</div>
+              <div class="spec-val">КАМАЗ-43118 6×6</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-label">Спутниковый канал</div>
+              <div class="spec-val">VSAT iNetVu C-COM</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-label">Видеомониторинг</div>
+              <div class="spec-val">Пневмомачта + PTZ</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-label">Время развёртывания</div>
+              <div class="spec-val">до 15–20 минут</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real Prototype Reference Gallery -->
+        <div class="panel-card">
+          <div class="card-kicker">Реальный образец (Ногинский СЦ МЧС)</div>
+          <div class="card-title">Фотографии прототипа (нажмите для увеличения)</div>
+          <div class="photo-grid" id="photo-grid">
+            <img class="photo-thumb" src="./photos/ref_1.jpg" alt="Вид 3/4 справа с трапами" />
+            <img class="photo-thumb" src="./photos/ref_2.jpg" alt="Вид спереди КАМАЗ-43118" />
+            <img class="photo-thumb" src="./photos/ref_6.jpg" alt="Левый борт КУНГа" />
+            <img class="photo-thumb" src="./photos/ref_9.jpg" alt="Кормовой отсек и аппарель" />
+            <img class="photo-thumb" src="./photos/ref_12.jpg" alt="Вид сверху: VSAT iNetVu и багажник" />
+            <img class="photo-thumb" src="./photos/ref_13.jpg" alt="Телескопическая мачта и крыша" />
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- MOBILE ?ar=1 INSTANT LAUNCH BANNER -->
+    <div class="mobile-ar-sheet" id="mobile-ar-sheet">
+      <div class="card-kicker orange">QR-код успешно открыт!</div>
+      <div class="card-title" style="margin-bottom:4px;">Выберите режим дополненной реальности (AR)</div>
+      <div style="font-size:12px;color:#cbd5e1;">Вы можете привязать 3D-узел связи прямо к QR-коду или разместить его на полу/столе:</div>
+      <div class="sheet-actions">
+        <button class="dock-btn primary-orange" id="sheet-btn-qr-ar" style="justify-content:center;padding:11px;">
+          Навести камеру на QR-код (3D поверх QR)
+        </button>
+        <button class="dock-btn active" id="sheet-btn-space-ar" style="justify-content:center;padding:11px;">
+          Поставить в комнате / на улице (AR без маркера)
+        </button>
+        <button class="sm-btn" id="sheet-btn-close">Остаться в интерактивном 3D-режиме</button>
+      </div>
+    </div>
+
+    <!-- PRINTABLE QR MARKER MODAL -->
+    <div class="modal-backdrop" id="qr-modal">
+      <div class="marker-modal">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="card-kicker orange">Готовый AR-маркер и ссылка</div>
+            <div class="card-title" style="margin-bottom:0;">Карточка QR-кода для наведения и печати</div>
+          </div>
+          <button class="preset-btn" id="btn-close-qr-modal">Закрыть ✕</button>
+        </div>
+
+        <div class="printable-marker-sheet" id="printable-sheet">
+          <h3>МОБИЛЬНЫЙ УЗЕЛ СВЯЗИ ЧС (КАМАЗ-43118)</h3>
+          <p>Наведите камеру смартфона на QR-код для открытия 3D / WebAR модели</p>
+          <canvas id="modal-qr-canvas" style="max-width:260px;height:auto;border:6px solid #0b1f3a;border-radius:10px;padding:8px;background:#fff;"></canvas>
+          <div style="margin-top:10px;font-size:11px;font-weight:700;color:#0284c7;" id="modal-url-display"></div>
+        </div>
+
+        <div style="font-size:12px;color:#94a3b8;">Целевой URL внутри QR-кода (автоматически подставлен текущий адрес сервера, можно изменить при переносе на свой хостинг):</div>
+        <div class="url-input-row">
+          <input type="text" class="url-input" id="custom-url-input" />
+          <button class="preset-btn" id="btn-apply-url">Обновить QR</button>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="dock-btn primary-orange" id="modal-btn-download" style="flex:1;justify-content:center;">Скачать карточку PNG</button>
+          <button class="dock-btn active" id="modal-btn-print" style="flex:1;justify-content:center;">Распечатать (A4)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHOTO LIGHTBOX MODAL -->
+    <div class="modal-backdrop" id="photo-modal">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+        <img class="lightbox-img" id="lightbox-img" src="" alt="Фото реального узла связи" />
+        <button class="dock-btn" id="btn-close-photo">Закрыть фото ✕</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
